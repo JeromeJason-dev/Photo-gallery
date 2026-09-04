@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery · Photo Gallery{% endblock %}
+
+{% block content %}
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Explore the Gallery</h1>
+        <p class="mt-1 text-gray-500">Browse photos, portraits, and artworks from the community.</p>
+    </div>
+
+    <form method="get" class="flex flex-col sm:flex-row gap-3 mb-6">
+        <input
+            type="text" name="q" value="{{ query }}" placeholder="Search by title or description…"
+            class="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+        {% if active_tag %}<input type="hidden" name="tag" value="{{ active_tag }}">{% endif %}
+        <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition">
+            Search
+        </button>
+    </form>
+
+    {% if tags %}
+    <div class="flex flex-wrap gap-2 mb-8">
+        <a href="{% url 'photo_gallery:home' %}{% if query %}?q={{ query }}{% endif %}"
+           class="px-3 py-1.5 rounded-full text-sm font-medium border transition
+           {% if not active_tag %}bg-brand-600 text-white border-brand-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-brand-400{% endif %}">
+            All
+        </a>
+        {% for tag in tags %}
+            <a href="?tag={{ tag.slug }}{% if query %}&q={{ query }}{% endif %}"
+               class="px-3 py-1.5 rounded-full text-sm font-medium border transition
+               {% if active_tag == tag.slug %}bg-brand-600 text-white border-brand-600{% else %}bg-white text-gray-600 border-gray-300 hover:border-brand-400{% endif %}">
+                #{{ tag.name }}
+            </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if photos %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for photo in photos %}
+                <a href="{% url 'photo_gallery:photo_detail' photo.pk %}"
+                   class="group bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition">
+                    <div class="aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                        <img src="{{ photo.image.url }}" alt="{{ photo.title }}"
+                             class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    </div>
+                    <div class="p-4">
+                        <h2 class="font-semibold text-gray-900 truncate">{{ photo.title }}</h2>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            {% for tag in photo.tags.all %}
+                                <span class="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">#{{ tag.name }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 flex items-center gap-4 text-xs text-gray-500">
+                            <span>&#128077; {{ photo.like_count }}</span>
+                            <span>&#128078; {{ photo.dislike_count }}</span>
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <div class="mt-10 flex items-center justify-center gap-2 text-sm">
+            {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if active_tag %}&tag={{ active_tag }}{% endif %}{% if query %}&q={{ query }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100">Previous</a>
+            {% endif %}
+            <span class="px-3 py-1.5 text-gray-500">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if active_tag %}&tag={{ active_tag }}{% endif %}{% if query %}&q={{ query }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100">Next</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
+            <p class="text-gray-500">No photos found{% if active_tag or query %} matching your filters{% endif %}.</p>
+            {% if user.is_authenticated %}
+                <a href="{% url 'photo_gallery:photo_upload' %}" class="mt-4 inline-block text-brand-600 font-medium hover:underline">Upload the first photo &rarr;</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}
