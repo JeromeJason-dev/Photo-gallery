@@ -30,7 +30,7 @@ class RegisterForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ["username", "email", "password1", "password2"]
+        fields = ["username", "email"]  # UserCreationForm provides password1 and password2 automatically
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -41,7 +41,6 @@ class RegisterForm(UserCreationForm):
         if "password1" in self.fields:
             self.fields["password1"].help_text = "Your password must contain at least 8 characters."
         
-        # Optional: Remove the default username help text
         if "username" in self.fields:
             self.fields["username"].help_text = ""
 
@@ -96,10 +95,27 @@ class PhotoForm(forms.ModelForm):
             "image": forms.ClearableFileInput(attrs={"class": "block w-full text-sm text-gray-700"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields["tags"].initial = ", ".join(t.name for t in self.instance.tags.all())
+
     def save(self, commit=True):
         photo = super().save(commit=commit)
+        
         if commit:
             self._save_tags(photo)
+        else:
+            # Attach save_m2m callback if saved with commit=False (e.g. in custom view workflows)
+            old_save_m2m = getattr(self, "save_m2m", None)
+
+            def save_m2m():
+                if old_save_m2m:
+                    old_save_m2m()
+                self._save_tags(photo)
+
+            self.save_m2m = save_m2m
+
         return photo
 
     def _save_tags(self, photo):
@@ -107,6 +123,8 @@ class PhotoForm(forms.ModelForm):
         tag_names = [t.strip() for t in raw_tags.split(",") if t.strip()]
         tags = []
         for name in tag_names:
-            tag, _ = Tag.objects.get_or_create(name__iexact=name, defaults={"name": name})
+            tag = Tag.objects.filter(name__iexact=name).first()
+            if not tag:
+                tag = Tag.objects.create(name=name)
             tags.append(tag)
         photo.tags.set(tags)
